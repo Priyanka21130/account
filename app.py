@@ -1,4 +1,5 @@
-import streamlit as st
+
+   import streamlit as st
 import pandas as pd
 import pygsheets
 import plotly.express as px
@@ -8,11 +9,10 @@ import re
 import io
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
-import requests
 
 # ===================== CONFIG =====================
-SPREADSHEET_ID = "1dWv4kVugXNFQ2NaodZkawaXRglqRJOWR"
-SHEET_GID = "840573777"
+SPREADSHEET_ID = "1dWv4kVugXNFQ2NaodZkawaXRglqRJOWR"  # From your actual spreadsheet
+SHEET_GID = "840573777"  # From your URL
 SHEET_NAME = "Pri Payment"
 SERVICE_FILE = "service_account.json"
 
@@ -30,17 +30,89 @@ if enable_auto:
 # ===================== CUSTOM CSS FOR DARK THEME =====================
 st.markdown("""
 <style>
-    .main .block-container { padding-top: 2rem; background-color: #0E1117; }
-    .metric-card { background: linear-gradient(135deg, #1E293B 0%, #334155 100%); padding: 1.5rem; border-radius: 12px; border: 1px solid #374151; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3); margin-bottom: 1rem; }
-    .metric-card:hover { transform: translateY(-2px); box-shadow: 0 6px 8px -1px rgba(0, 0, 0, 0.4); }
-    .metric-title { font-size: 0.9rem; font-weight: 600; color: #94A3B8; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px; }
-    .metric-value { font-size: 1.8rem; font-weight: 700; color: #FFFFFF; margin-bottom: 0; }
-    .section-header { font-size: 1.4rem; font-weight: 700; color: #FFFFFF; margin: 2rem 0 1rem 0; padding-bottom: 0.5rem; border-bottom: 2px solid #374151; }
-    .status-summary { background: #1E293B; padding: 1.5rem; border-radius: 12px; border: 1px solid #374151; margin-bottom: 1rem; }
-    .status-item { display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #374151; }
-    .status-item:last-child { border-bottom: none; }
-    .chart-container { background: #1E293B; padding: 1.5rem; border-radius: 12px; border: 1px solid #374151; margin-bottom: 1rem; }
-    .kpi-row { display: flex; gap: 1rem; margin-bottom: 2rem; }
+    /* Main background */
+    .main .block-container {
+        padding-top: 2rem;
+        background-color: #0E1117;
+    }
+    
+    /* Metric cards styling */
+    .metric-card {
+        background: linear-gradient(135deg, #1E293B 0%, #334155 100%);
+        padding: 1.5rem;
+        border-radius: 12px;
+        border: 1px solid #374151;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        margin-bottom: 1rem;
+        transition: transform 0.2s ease;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 8px -1px rgba(0, 0, 0, 0.4);
+    }
+    
+    .metric-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #94A3B8;
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .metric-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #FFFFFF;
+        margin-bottom: 0;
+    }
+    
+    /* Section headers */
+    .section-header {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #FFFFFF;
+        margin: 2rem 0 1rem 0;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #374151;
+    }
+    
+    /* Status summary styling */
+    .status-summary {
+        background: #1E293B;
+        padding: 1.5rem;
+        border-radius: 12px;
+        border: 1px solid #374151;
+        margin-bottom: 1rem;
+    }
+    
+    .status-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #374151;
+    }
+    
+    .status-item:last-child {
+        border-bottom: none;
+    }
+    
+    /* Chart container */
+    .chart-container {
+        background: #1E293B;
+        padding: 1.5rem;
+        border-radius: 12px;
+        border: 1px solid #374151;
+        margin-bottom: 1rem;
+    }
+    
+    /* KPI row styling */
+    .kpi-row {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -51,26 +123,21 @@ def clean_colname(x):
     x = x.replace(" ", "_")
     return x if x else "col"
 
+def clean_num(x):
+    if x is None:
+        return 0.0
+    x = str(x).strip()
+    x = re.sub(r"[^\d\.\-]", "", x)
+    return float(x) if x.replace('.', '', 1).isdigit() else 0.0
+
 def safe_num(v):
-    """Enhanced number conversion for Indian currency format"""
     try:
         if pd.isna(v) or v == "" or str(v).strip() == "":
             return 0.0
-        
-        # Convert to string and clean
-        v_str = str(v).strip()
-        
-        # Remove currency symbols, commas, and spaces
-        v_clean = re.sub(r'[₹$,\\s]', '', v_str)
-        
-        # Handle negative numbers in parentheses
-        if v_clean.startswith('(') and v_clean.endswith(')'):
-            v_clean = '-' + v_clean[1:-1]
-        
-        # Convert to float
-        return float(v_clean) if v_clean else 0.0
-        
-    except Exception as e:
+        # Remove currency symbols and commas
+        v_clean = str(v).replace('₹', '').replace(',', '').replace(' ', '').strip()
+        return float(v_clean)
+    except:
         return 0.0
 
 def parse_date(v):
@@ -113,78 +180,22 @@ def load_via_service():
         st.sidebar.error(f"❌ Service Account failed: {str(e)}")
         return None
 
-# ===================== ENHANCED CSV LOADING =====================
+# ===================== LOAD VIA CSV EXPORT =====================
 @st.cache_data(ttl=120)
 def load_via_csv():
     try:
-        # Enhanced CSV URL with multiple format options
-        csv_urls = [
-            f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/export?format=csv&gid={SHEET_GID}",
-            f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid={SHEET_GID}",
-        ]
+        # Using your exact GID from the URL
+        csv_url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/export?format=csv&gid={SHEET_GID}"
         
-        df = None
-        last_error = None
+        # Add cache busting to avoid stale data
+        df = pd.read_csv(csv_url)
         
-        for i, csv_url in enumerate(csv_urls):
-            try:
-                st.sidebar.info(f"🔄 Trying CSV URL {i+1}...")
-                
-                # Add headers and cache busting
-                headers = {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
-                import time
-                csv_url += f"&t={int(time.time())}"
-                
-                response = requests.get(csv_url, headers=headers, timeout=30)
-                response.raise_for_status()
-                
-                # Try different encodings
-                encodings = ['utf-8', 'latin-1', 'windows-1252', 'iso-8859-1']
-                
-                for encoding in encodings:
-                    try:
-                        # Read CSV with flexible settings
-                        df = pd.read_csv(
-                            io.StringIO(response.text), 
-                            encoding=encoding,
-                            skip_blank_lines=True,
-                            na_filter=False,
-                            dtype=str,  # Read all as string first
-                            thousands=',',  # Handle comma as thousands separator
-                            skipinitialspace=True
-                        )
-                        
-                        # Clean the dataframe
-                        df = df.dropna(how='all')  # Remove empty rows
-                        df = df.loc[:, ~df.columns.str.contains('^Unnamed')]  # Remove unnamed columns
-                        
-                        if not df.empty and len(df.columns) > 1:
-                            st.sidebar.success(f"✅ CSV loaded: {len(df)} records with encoding {encoding}")
-                            return df
-                            
-                    except UnicodeDecodeError:
-                        continue
-                    except Exception as e:
-                        continue
-                        
-            except Exception as e:
-                last_error = e
-                continue
-        
-        # If all methods failed, try direct pandas read
-        try:
-            st.sidebar.info("🔄 Trying direct pandas read...")
-            df = pd.read_csv(f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/export?format=csv&gid={SHEET_GID}")
-            if not df.empty:
-                st.sidebar.success(f"✅ Direct CSV loaded: {len(df)} records")
-                return df
-        except:
-            pass
+        if df.empty:
+            st.sidebar.warning("📭 CSV loaded but empty")
+            return None
             
-        st.sidebar.error(f"❌ All CSV methods failed")
-        return None
+        st.sidebar.success(f"✅ Loaded {len(df)} records via CSV")
+        return df
         
     except Exception as e:
         st.sidebar.error(f"❌ CSV Export failed: {str(e)}")
@@ -199,143 +210,12 @@ def load_demo_data():
         'Order Amount': ['79,290,940.00', '65,000,000.00', '45,500,000.00', '38,750,000.00'],
         'Final Amount': ['91,102,303.30', '75,000,000.00', '52,500,000.00', '44,750,000.00'],
         'Payment Received': ['36,923,263.30', '30,000,000.00', '25,000,000.00', '18,500,000.00'],
-        'Pending Amount': ['54,179,040.00', '45,000,000.00', '27,500,000.00', '26,250,000.00'],
+        'Pending Amount': ['0.00', '0.00', '0.00', '0.00'],
         'Payment Mode': ['Online', 'Cash', 'Cheque', 'Cash and Online'],
         'Work Status': ['Completed', 'In Progress', 'Pending', 'Completed'],
         'Date': ['01/01/2024', '15/01/2024', '20/01/2024', '25/01/2024']
     }
     return pd.DataFrame(demo_data)
-
-# ===================== IMPROVED DATA PROCESSING =====================
-def process_raw_data(df):
-    """Process and clean the raw data with enhanced CSV handling"""
-    # Create a clean copy
-    df_clean = df.copy()
-    
-    # Clean column names
-    df_clean.columns = [clean_colname(c) for c in df_clean.columns]
-    
-    # Debug info
-    with st.sidebar.expander("🔍 Debug Info"):
-        st.write("Original columns:", list(df.columns))
-        st.write("Cleaned columns:", list(df_clean.columns))
-        st.write("Data shape:", df_clean.shape)
-        if not df_clean.empty:
-            st.write("First 2 rows sample:", df_clean.head(2).to_dict('records'))
-    
-    # Enhanced column mapping
-    column_mapping = {
-        'unit_name': ['unit_name', 'unit', 'unitname', 'name', 'client', 'customer'],
-        'work_order_no': ['work_order_no', 'work_order', 'wo_no', 'order_no', 'workorder', 'wo_number'],
-        'order_amount': ['order_amount', 'order', 'amount', 'order_amt', 'initial_amount', 'quoted_amount'],
-        'final_amount': ['final_amount', 'final', 'final_amt', 'total_amount', 'grand_total', 'invoice_amount'],
-        'payment_received': ['payment_received', 'received', 'paid', 'payment_received', 'amount_received', 'paid_amount'],
-        'pending_amount': ['pending_amount', 'pending', 'balance', 'due_amount', 'outstanding', 'remaining'],
-        'payment_mode': ['payment_mode', 'mode', 'payment_type', 'type', 'payment_method'],
-        'work_status': ['work_status', 'status', 'job_status', 'project_status', 'completion_status'],
-        'date': ['date', 'p_date', 'payment_date', 'transaction_date', 'invoice_date', 'entry_date']
-    }
-    
-    # Apply column mapping with feedback
-    mapped_count = 0
-    for standard_name, possible_names in column_mapping.items():
-        for possible_name in possible_names:
-            if possible_name in df_clean.columns and standard_name not in df_clean.columns:
-                df_clean.rename(columns={possible_name: standard_name}, inplace=True)
-                mapped_count += 1
-                st.sidebar.info(f"📝 Mapped '{possible_name}' → '{standard_name}'")
-                break
-    
-    # Ensure required columns exist
-    required_cols = ['order_amount', 'final_amount', 'payment_received']
-    for col in required_cols:
-        if col not in df_clean.columns:
-            df_clean[col] = 0.0
-            st.sidebar.warning(f"⚠️ Column '{col}' not found, using defaults")
-    
-    # Handle pending_amount separately
-    if 'pending_amount' not in df_clean.columns:
-        st.sidebar.info("🔄 'pending_amount' column not found, will calculate it")
-        df_clean['pending_amount'] = 0.0
-    
-    # Enhanced numeric conversion with debugging
-    numeric_cols = ['order_amount', 'final_amount', 'payment_received', 'pending_amount']
-    conversion_debug = {}
-    
-    for col in numeric_cols:
-        if col in df_clean.columns:
-            # Store sample values for debugging
-            original_samples = df_clean[col].head(3).tolist()
-            
-            # Apply conversion
-            df_clean[col] = df_clean[col].apply(safe_num)
-            
-            # Store converted samples
-            converted_samples = df_clean[col].head(3).tolist()
-            conversion_debug[col] = {
-                'original': original_samples,
-                'converted': converted_samples,
-                'total': df_clean[col].sum()
-            }
-    
-    # Show conversion debug
-    with st.sidebar.expander("💰 Number Conversion Debug"):
-        for col, debug_info in conversion_debug.items():
-            st.write(f"**{col}:**")
-            st.write(f"  Original: {debug_info['original']}")
-            st.write(f"  Converted: {debug_info['converted']}")
-            st.write(f"  Total: ₹ {debug_info['total']:,.2f}")
-    
-    # Calculate pending amount (CRITICAL FIX)
-    if all(col in df_clean.columns for col in ['final_amount', 'payment_received']):
-        calculated_pending = df_clean['final_amount'] - df_clean['payment_received']
-        
-        # Always use calculated pending for accuracy
-        df_clean['pending_amount'] = calculated_pending.clip(lower=0)
-        
-        # Show validation
-        existing_total = conversion_debug.get('pending_amount', {}).get('total', 0)
-        calculated_total = calculated_pending.sum()
-        
-        st.sidebar.info(f"💰 Pending Amount Validation:")
-        st.sidebar.info(f"   CSV Provided: ₹ {existing_total:,.2f}")
-        st.sidebar.info(f"   Calculated: ₹ {calculated_total:,.2f}")
-        
-        if abs(existing_total - calculated_total) > 100:
-            st.sidebar.success("✅ Using calculated pending amounts for accuracy")
-    
-    # Process work status
-    if 'work_status' not in df_clean.columns:
-        df_clean['work_status'] = 'Unknown'
-    else:
-        df_clean['work_status'] = df_clean['work_status'].fillna('Unknown').astype(str).str.strip().str.title()
-    
-    # Process payment mode
-    if 'payment_mode' not in df_clean.columns:
-        df_clean['payment_mode'] = 'Unknown'
-    else:
-        df_clean['payment_mode'] = df_clean['payment_mode'].fillna('Unknown').astype(str).str.strip().str.title()
-    
-    # Process dates
-    date_cols = ['date', 'p_date', 'payment_date']
-    for date_col in date_cols:
-        if date_col in df_clean.columns:
-            df_clean['payment_date'] = df_clean[date_col].apply(parse_date)
-            break
-    else:
-        df_clean['payment_date'] = pd.NaT
-    
-    df_clean['year'] = df_clean['payment_date'].dt.year.fillna(datetime.now().year).astype(int)
-    
-    # Final summary
-    st.sidebar.success(f"✅ Processed {len(df_clean)} records")
-    st.sidebar.info(f"📊 Final Totals:")
-    st.sidebar.info(f"   Order: ₹ {df_clean['order_amount'].sum():,.2f}")
-    st.sidebar.info(f"   Final: ₹ {df_clean['final_amount'].sum():,.2f}")
-    st.sidebar.info(f"   Received: ₹ {df_clean['payment_received'].sum():,.2f}")
-    st.sidebar.info(f"   Pending: ₹ {df_clean['pending_amount'].sum():,.2f}")
-    
-    return df_clean
 
 # ===================== MAIN DATA LOADING LOGIC =====================
 def load_data():
@@ -348,26 +228,23 @@ def load_data():
     - Sheet GID: `{SHEET_GID}`
     """)
     
-    # Data source selection - prioritize Service Account since it works
+    # Data source selection
     data_source = st.sidebar.radio(
         "Select Data Source:",
-        ["Service Account (Most Accurate)", "CSV Export", "Demo Data"],
+        ["CSV Export (Recommended)", "Service Account", "Demo Data"],
         index=0
     )
     
     df = None
     
-    if data_source == "Service Account (Most Accurate)":
+    if data_source == "Service Account":
         df = load_via_service()
         if df is None:
-            st.sidebar.warning("🔄 Service Account failed, trying CSV...")
+            st.sidebar.warning("🔄 Falling back to CSV Export...")
             df = load_via_csv()
             
     elif data_source == "CSV Export":
         df = load_via_csv()
-        if df is None:
-            st.sidebar.warning("🔄 CSV failed, trying Service Account...")
-            df = load_via_service()
         
     else:  # Demo Data
         df = load_demo_data()
@@ -380,6 +257,70 @@ def load_data():
         st.warning("⚠️ Displaying DEMO DATA - Check your spreadsheet sharing settings")
     
     return process_raw_data(df)
+
+def process_raw_data(df):
+    """Process and clean the raw data"""
+    # Create a clean copy
+    df_clean = df.copy()
+    
+    # Clean column names
+    df_clean.columns = [clean_colname(c) for c in df_clean.columns]
+    
+    # Debug info
+    with st.sidebar.expander("🔍 Debug Info"):
+        st.write("Original columns:", list(df.columns))
+        st.write("Cleaned columns:", list(df_clean.columns))
+        if not df_clean.empty:
+            st.write("First row sample:", df_clean.iloc[0].to_dict())
+        st.write("Data types:", df_clean.dtypes.astype(str))
+    
+    # Flexible column mapping - handle different possible column names
+    column_mapping = {
+        'unit_name': ['unit_name', 'unit', 'unitname', 'name'],
+        'work_order_no': ['work_order_no', 'work_order', 'wo_no', 'order_no', 'workorder'],
+        'order_amount': ['order_amount', 'order', 'amount', 'order_amt'],
+        'final_amount': ['final_amount', 'final', 'final_amt', 'total_amount'],
+        'payment_received': ['payment_received', 'received', 'paid', 'payment_received'],
+        'pending_amount': ['pending_amount', 'pending', 'balance', 'due_amount'],
+        'payment_mode': ['payment_mode', 'mode', 'payment_type', 'type'],
+        'work_status': ['work_status', 'status', 'job_status'],
+        'p_date': ['p_date', 'date', 'payment_date', 'transaction_date']
+    }
+    
+    # Apply column mapping
+    for standard_name, possible_names in column_mapping.items():
+        for possible_name in possible_names:
+            if possible_name in df_clean.columns and standard_name not in df_clean.columns:
+                df_clean.rename(columns={possible_name: standard_name}, inplace=True)
+                break
+    
+    # Ensure required columns exist
+    for col in ['order_amount', 'final_amount', 'payment_received', 'pending_amount']:
+        if col not in df_clean.columns:
+            df_clean[col] = 0.0
+            st.sidebar.warning(f"⚠️ Column '{col}' not found, using defaults")
+    
+    # Convert numeric columns
+    for col in ['order_amount', 'final_amount', 'payment_received', 'pending_amount']:
+        df_clean[col] = df_clean[col].apply(safe_num)
+    
+    # Calculate pending amount if not properly set
+    df_clean["pending_amount"] = df_clean["final_amount"] - df_clean["payment_received"]
+    
+    # Process work status
+    if 'work_status' not in df_clean.columns:
+        df_clean['work_status'] = 'Unknown'
+    else:
+        df_clean['work_status'] = df_clean['work_status'].fillna('Unknown').astype(str).str.strip()
+    
+    # Process dates
+    if 'p_date' in df_clean.columns:
+        df_clean['payment_date'] = df_clean['p_date'].apply(parse_date)
+        df_clean['year'] = df_clean['payment_date'].dt.year.fillna(2024).astype(int)
+    else:
+        df_clean['year'] = 2024
+    
+    return df_clean
 
 # ===================== MAIN APP =====================
 def main():
@@ -587,35 +528,27 @@ def main():
     # ===================== FILTERS SECTION =====================
     st.markdown('<div class="section-header">🔍 Filter Records</div>', unsafe_allow_html=True)
     
-    filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(4)
+    filter_col1, filter_col2, filter_col3 = st.columns(3)
     
     with filter_col1:
         # Status filter
-        status_options = ["All"] + sorted(list(df["work_status"].unique()))
+        status_options = ["All"] + list(df["work_status"].unique())
         selected_status = st.selectbox("Filter by Status", status_options)
     
     with filter_col2:
         # Payment mode filter
         if "payment_mode" in df.columns:
-            mode_options = ["All"] + sorted(list(df["payment_mode"].unique()))
+            mode_options = ["All"] + list(df["payment_mode"].unique())
             selected_mode = st.selectbox("Filter by Payment Mode", mode_options)
         else:
             selected_mode = "All"
     
     with filter_col3:
-        # Unit filter
-        if "unit_name" in df.columns:
-            unit_options = ["All"] + sorted(list(df["unit_name"].dropna().unique()))
-            selected_unit = st.selectbox("Filter by Unit", unit_options)
-        else:
-            selected_unit = "All"
-    
-    with filter_col4:
         # Amount range filter
         min_amount = float(df["final_amount"].min())
         max_amount = float(df["final_amount"].max())
         amount_range = st.slider(
-            "Filter by Final Amount (₹)",
+            "Filter by Final Amount Range (₹)",
             min_value=min_amount,
             max_value=max_amount,
             value=(min_amount, max_amount)
@@ -628,9 +561,6 @@ def main():
     
     if selected_mode != "All" and "payment_mode" in filtered_df.columns:
         filtered_df = filtered_df[filtered_df["payment_mode"] == selected_mode]
-    
-    if selected_unit != "All" and "unit_name" in filtered_df.columns:
-        filtered_df = filtered_df[filtered_df["unit_name"] == selected_unit]
     
     filtered_df = filtered_df[
         (filtered_df["final_amount"] >= amount_range[0]) & 
@@ -646,20 +576,13 @@ def main():
     # Data table with better styling
     display_columns = []
     for col in ['unit_name', 'work_order_no', 'order_amount', 'final_amount', 
-                'payment_received', 'pending_amount', 'payment_mode', 'work_status', 'date']:
+                'payment_received', 'pending_amount', 'payment_mode', 'work_status', 'p_date']:
         if col in filtered_df.columns:
             display_columns.append(col)
     
     if display_columns:
-        # Format numeric columns for display
-        display_df = filtered_df[display_columns].copy()
-        numeric_cols = ['order_amount', 'final_amount', 'payment_received', 'pending_amount']
-        for col in numeric_cols:
-            if col in display_df.columns:
-                display_df[col] = display_df[col].apply(lambda x: f"₹ {x:,.2f}")
-        
         st.dataframe(
-            display_df,
+            filtered_df[display_columns],
             use_container_width=True,
             height=400
         )
