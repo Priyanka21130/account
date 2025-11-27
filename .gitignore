@@ -1,0 +1,16 @@
+# Service account files
+service_account.json
+*.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
