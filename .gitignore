@@ -8,9 +8,12 @@ __pycache__/
 *.pyo
 *.pyd
 .Python
+.env
+.DS_Store
 env/
 venv/
 
 # OS
 .DS_Store
+
 Thumbs.db
